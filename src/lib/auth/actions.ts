@@ -15,7 +15,12 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: {
+      data: { full_name: fullName },
+      emailRedirectTo:
+        (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
+        "/auth/callback",
+    },
   });
 
   if (error) return { error: error.message };

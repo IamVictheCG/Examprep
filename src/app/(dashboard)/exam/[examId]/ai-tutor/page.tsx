@@ -101,13 +101,13 @@ export default function AiTutorPage() {
   }, [messages, typing]);
 
   async function sendMessage(text: string) {
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
+    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text };
     const updatedMessages  = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
     setTyping(true);
 
-    const aiMsgId = (Date.now() + 1).toString();
+    const aiMsgId = crypto.randomUUID();
 
     try {
       const apiMessages = updatedMessages
@@ -130,24 +130,25 @@ export default function AiTutorPage() {
 
       const reader  = response.body!.getReader();
       const decoder = new TextDecoder();
-      let fullContent = "";
+      const chunks: string[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullContent += chunk;
+        chunks.push(decoder.decode(value, { stream: true }));
         setMessages((prev) =>
-          prev.map((m) => (m.id === aiMsgId ? { ...m, content: fullContent } : m))
+          prev.map((m) => (m.id === aiMsgId ? { ...m, content: chunks.join("") } : m))
         );
       }
+
+      const finalContent = chunks.join("");
 
       // Save full conversation to DB
       if (user) {
         const supabase   = createClient();
         const messagesToSave = updatedMessages
           .filter((m) => m.id !== "welcome")
-          .concat({ id: aiMsgId, role: "assistant", content: fullContent })
+          .concat({ id: aiMsgId, role: "assistant", content: finalContent })
           .map((m) => ({
             role:      m.role,
             content:   m.content,

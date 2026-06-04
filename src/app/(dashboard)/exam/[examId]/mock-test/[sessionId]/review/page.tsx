@@ -70,6 +70,7 @@ export default function ReviewPage() {
       const correctOpt = q.options.find((o) => o.id === q.correctId);
       if (!userOpt || !correctOpt) continue;
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingExpl((prev) => ({ ...prev, [q.id]: true }));
 
       generateExplanation(q.text, userOpt.text, correctOpt.text, exam?.name ?? "this exam")

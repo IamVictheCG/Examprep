@@ -13,30 +13,20 @@ export function useUser(): { user: User | null; profile: Profile | null; loading
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let _client: ReturnType<typeof createClient>;
-    try {
-      _client = createClient();
-    } catch {
-      setLoading(false);
-      return;
-    }
-    const supabase = _client;
+    const supabase = createClient();
 
-    async function fetchProfile(userId: string) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      setProfile(data);
-    }
-
-    async function init() {
+    async function getUser() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
         setUser(currentUser);
-        if (currentUser) await fetchProfile(currentUser.id);
+        if (currentUser) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url, streak_count")
+            .eq("id", currentUser.id)
+            .single();
+          setProfile(data);
+        }
       } catch {
         // Supabase not configured — silently fail
       } finally {
@@ -44,27 +34,26 @@ export function useUser(): { user: User | null; profile: Profile | null; loading
       }
     }
 
-    init();
+    getUser();
 
-    let unsubscribe: (() => void) | undefined;
-    try {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          const currentUser = session?.user ?? null;
-          setUser(currentUser);
-          if (currentUser) {
-            await fetchProfile(currentUser.id);
-          } else {
-            setProfile(null);
-          }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url, streak_count")
+            .eq("id", session.user.id)
+            .single();
+          setProfile(data);
+        } else {
+          setProfile(null);
         }
-      );
-      unsubscribe = () => subscription.unsubscribe();
-    } catch {
-      // ignore
-    }
+        setLoading(false);
+      }
+    );
 
-    return () => unsubscribe?.();
+    return () => subscription.unsubscribe();
   }, []);
 
   return { user, profile, loading };

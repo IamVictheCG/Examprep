@@ -374,7 +374,7 @@ function PricingCard({ exam, price }: { exam: Exam; price: string }) {
       </ul>
 
       {/* CTA */}
-      <Link href={`/signup?exam=${exam.id}`} style={{ textDecoration: "none" }}>
+      <Link href={`/register?exam=${exam.id}`} style={{ textDecoration: "none" }}>
         <Button variant="outline" style={{ width: "100%", justifyContent: "center" }}>
           Get Access
         </Button>

@@ -14,8 +14,7 @@ interface DashboardNavProps {
 
 const CENTER_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "My Exams",  href: "/dashboard/exams" },
-  { label: "AI Tutor",  href: "/dashboard/tutor" },
+  { label: "My Exams",  href: "/exams"     },
 ] as const;
 
 export default function DashboardNav({
@@ -185,8 +184,8 @@ export default function DashboardNav({
                   }}
                 >
                   {[
-                    { label: "Profile",  Icon: User,     href: "/dashboard/profile"  },
-                    { label: "Settings", Icon: Settings, href: "/dashboard/settings" },
+                    { label: "Profile",  Icon: User,     href: "/account" },
+                    { label: "Settings", Icon: Settings, href: "/account" },
                   ].map(({ label, Icon, href }) => (
                     <Link
                       key={label}

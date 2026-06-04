@@ -4,7 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
-const NAV_LINKS = ["Exams", "Features", "Pricing", "About"] as const;
+const NAV_LINKS = [
+  { label: "Exams",    href: "/exams"    },
+  { label: "Features", href: "/#features" },
+  { label: "Pricing",  href: "/pricing"  },
+  { label: "About",    href: "/about"    },
+] as const;
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -42,12 +47,12 @@ export default function Navbar() {
         <nav className="hidden md:flex" style={{ gap: "2rem" }}>
           {NAV_LINKS.map((item) => (
             <Link
-              key={item}
-              href={`#${item.toLowerCase()}`}
+              key={item.label}
+              href={item.href}
               className="nav-link"
               style={{ fontSize: "0.875rem", textDecoration: "none" }}
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </nav>
@@ -69,7 +74,7 @@ export default function Navbar() {
             Log in
           </Link>
           <Link
-            href="/signup"
+            href="/register"
             style={{
               color: "var(--accent-cyan)",
               fontSize: "0.875rem",
@@ -146,13 +151,13 @@ export default function Navbar() {
             >
               {NAV_LINKS.map((item) => (
                 <Link
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
+                  key={item.label}
+                  href={item.href}
                   className="nav-link"
                   onClick={() => setMobileOpen(false)}
                   style={{ fontSize: "1rem", textDecoration: "none" }}
                 >
-                  {item}
+                  {item.label}
                 </Link>
               ))}
               <div
@@ -178,7 +183,7 @@ export default function Navbar() {
                   Log in
                 </Link>
                 <Link
-                  href="/signup"
+                  href="/register"
                   style={{
                     color: "var(--accent-cyan)",
                     fontSize: "0.9rem",

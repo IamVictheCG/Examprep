@@ -59,13 +59,15 @@ export async function saveAnswer(
 
 export async function completeSession(
   sessionId: string,
+  clientAnswers: Record<string, string>,
   durationSeconds?: number
 ): Promise<number> {
   const supabase = await createClient();
 
+  // Fetch only the minimal fields we need — no need to read back answers
   const { data: session } = await supabase
     .from("mock_test_sessions")
-    .select("*")
+    .select("user_id, exam_id, questions")
     .eq("id", sessionId)
     .single();
 
@@ -74,66 +76,70 @@ export async function completeSession(
   const { data: questions } = await supabase
     .from("questions")
     .select("id, correct_option_id, topic_id")
-    .in("id", session.questions);
+    .in("id", session.questions as string[]);
 
   if (!questions?.length) throw new Error("Questions not found");
 
   const correctCount = questions.filter(
-    (q) => session.answers[q.id] === q.correct_option_id
+    (q) => clientAnswers[q.id] === q.correct_option_id
   ).length;
 
   const score = Math.round((correctCount / questions.length) * 100);
+  const now   = new Date().toISOString();
 
+  // Save answers + completion in one single update
   await supabase
     .from("mock_test_sessions")
     .update({
+      answers:          clientAnswers,
       score,
-      completed: true,
-      completed_at: new Date().toISOString(),
+      completed:        true,
+      completed_at:     now,
       duration_seconds: durationSeconds ?? 0,
     })
     .eq("id", sessionId);
 
-  // Upsert topic_performance for each topic
-  const topicMap: Record<string, { attempted: number; correct: number }> = {};
+  // Build per-topic delta
+  const topicDelta: Record<string, { attempted: number; correct: number }> = {};
   for (const q of questions) {
     if (!q.topic_id) continue;
-    if (!topicMap[q.topic_id]) topicMap[q.topic_id] = { attempted: 0, correct: 0 };
-    topicMap[q.topic_id].attempted++;
-    if (session.answers[q.id] === q.correct_option_id) {
-      topicMap[q.topic_id].correct++;
-    }
+    if (!topicDelta[q.topic_id]) topicDelta[q.topic_id] = { attempted: 0, correct: 0 };
+    topicDelta[q.topic_id].attempted++;
+    if (clientAnswers[q.id] === q.correct_option_id) topicDelta[q.topic_id].correct++;
   }
 
-  for (const [topicId, perf] of Object.entries(topicMap)) {
-    const { data: existing } = await supabase
-      .from("topic_performance")
-      .select("id, total_attempted, total_correct")
-      .eq("user_id", session.user_id)
-      .eq("exam_id", session.exam_id)
-      .eq("topic_id", topicId)
-      .maybeSingle();
+  const topicIds = Object.keys(topicDelta);
+  if (!topicIds.length) return score;
 
-    if (existing) {
-      await supabase
-        .from("topic_performance")
-        .update({
-          total_attempted: existing.total_attempted + perf.attempted,
-          total_correct:   existing.total_correct   + perf.correct,
-          last_updated:    new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("topic_performance").insert({
-        user_id:         session.user_id,
-        exam_id:         session.exam_id,
-        topic_id:        topicId,
-        total_attempted: perf.attempted,
-        total_correct:   perf.correct,
-        last_updated:    new Date().toISOString(),
-      });
-    }
-  }
+  // One SELECT for all existing records instead of N selects
+  const { data: existing } = await supabase
+    .from("topic_performance")
+    .select("topic_id, total_attempted, total_correct")
+    .eq("user_id", session.user_id)
+    .eq("exam_id", session.exam_id)
+    .in("topic_id", topicIds);
+
+  const existingMap = Object.fromEntries(
+    (existing ?? []).map((r) => [r.topic_id, r])
+  );
+
+  // One batch upsert instead of N insert/updates
+  const upsertRows = topicIds.map((topicId) => {
+    const delta = topicDelta[topicId];
+    const prev  = existingMap[topicId];
+    return {
+      user_id:         session.user_id,
+      exam_id:         session.exam_id,
+      topic_id:        topicId,
+      total_attempted: (prev?.total_attempted ?? 0) + delta.attempted,
+      total_correct:   (prev?.total_correct   ?? 0) + delta.correct,
+      last_updated:    now,
+    };
+  });
+
+  await supabase
+    .from("topic_performance")
+    .upsert(upsertRows, { onConflict: "user_id,exam_id,topic_id" });
 
   return score;
 }

@@ -9,7 +9,7 @@ import Button from "@/components/ui/Button";
 import { EXAMS } from "@/lib/constants";
 import {
   BookOpen, ClipboardList, Flame, TrendingUp,
-  Clock, BarChart2, BookMarked, ChevronRight,
+  Clock, BookMarked,
 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { getSubscribedExams } from "@/lib/subscriptions";

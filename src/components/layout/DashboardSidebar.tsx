@@ -20,13 +20,17 @@ interface DashboardSidebarProps {
   activePage?: string;
 }
 
-const NAV_ITEMS = [
-  { label: "Overview",      icon: LayoutDashboard, href: "/dashboard"           },
-  { label: "Flashcards",    icon: BookOpen,        href: "/dashboard/flashcards" },
-  { label: "Mock Test",     icon: ClipboardList,   href: "/dashboard/mock-test"  },
-  { label: "Question Bank", icon: HelpCircle,      href: "/dashboard/questions"  },
-  { label: "Analytics",     icon: BarChart2,       href: "/dashboard/analytics"  },
-  { label: "AI Tutor",      icon: BrainCircuit,    href: "/dashboard/tutor"      },
+const EXAM_NAV = [
+  { label: "Overview",      icon: LayoutDashboard, segment: ""               },
+  { label: "Flashcards",    icon: BookOpen,        segment: "/flashcards"    },
+  { label: "Mock Test",     icon: ClipboardList,   segment: "/mock-test"     },
+  { label: "Question Bank", icon: HelpCircle,      segment: "/question-bank" },
+  { label: "Analytics",     icon: BarChart2,       segment: "/analytics"     },
+  { label: "AI Tutor",      icon: BrainCircuit,    segment: "/ai-tutor"      },
+] as const;
+
+const DASHBOARD_NAV = [
+  { label: "Dashboard", icon: LayoutDashboard, segment: "" },
 ] as const;
 
 export default function DashboardSidebar({ examId, activePage }: DashboardSidebarProps) {
@@ -49,16 +53,18 @@ export default function DashboardSidebar({ examId, activePage }: DashboardSideba
     >
       {/* Nav items */}
       <nav style={{ flex: 1, paddingTop: "0.75rem", paddingBottom: "0.75rem" }}>
-        {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
-          const resolvedHref = examId ? `${href}?exam=${examId}` : href;
+        {(examId ? EXAM_NAV : DASHBOARD_NAV).map(({ label, icon: Icon, segment }) => {
+          const resolvedHref = examId
+            ? `/exam/${examId}${segment}`
+            : "/dashboard";
           const isActive =
             activePage === label.toLowerCase() ||
-            pathname === href ||
-            (pathname !== null && pathname.startsWith(href + "/"));
+            pathname === resolvedHref ||
+            (segment !== "" && pathname !== null && pathname.startsWith(resolvedHref));
 
           return (
             <Link
-              key={label}
+              key={resolvedHref}
               href={resolvedHref}
               title={collapsed ? label : undefined}
               style={{
