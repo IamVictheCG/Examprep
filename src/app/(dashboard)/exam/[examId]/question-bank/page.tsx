@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Bookmark, BookmarkCheck, ChevronDown, CheckCircle } from "lucide-react";
+import { Search, Bookmark, BookmarkCheck, ChevronDown, CheckCircle, XCircle } from "lucide-react";
 import DashboardWrapper from "@/components/layout/DashboardWrapper";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -134,7 +134,6 @@ export default function QuestionBankPage() {
 
   // Reset page when filters change
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [search, topic, year, difficulty, type]);
 
@@ -143,7 +142,7 @@ export default function QuestionBankPage() {
     const isMarked = bookmarked.has(id);
     setBookmarked((prev) => {
       const next = new Set(prev);
-      if (isMarked) next.delete(id); else next.add(id);
+      isMarked ? next.delete(id) : next.add(id);
       return next;
     });
     try {
@@ -153,7 +152,7 @@ export default function QuestionBankPage() {
       // Revert on error
       setBookmarked((prev) => {
         const next = new Set(prev);
-        if (isMarked) next.add(id); else next.delete(id);
+        isMarked ? next.add(id) : next.delete(id);
         return next;
       });
     }

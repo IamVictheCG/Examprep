@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import DashboardWrapper from "@/components/layout/DashboardWrapper";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -81,7 +81,6 @@ export default function ExamOverviewPage() {
     if (userLoading) return;
     if (!user) {
       // No auth configured or not logged in — show content in dev mode
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasAccess(true);
       return;
     }

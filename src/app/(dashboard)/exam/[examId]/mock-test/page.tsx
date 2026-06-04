@@ -11,7 +11,7 @@ import { EXAMS } from "@/lib/constants";
 import { Flag, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { getRandomQuestions } from "@/lib/api/questions";
-import { createSession, completeSession } from "@/lib/api/mock-tests";
+import { createSession, saveAnswer, completeSession } from "@/lib/api/mock-tests";
 
 // ─── Design-system colours ────────────────────────────────────────────────────
 const CYAN   = "#00e5ff";
@@ -61,9 +61,6 @@ export default function MockTestPage() {
   const timerRef                    = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef                = useRef<string | null>(null);
   const startTimeRef                = useRef<number>(0);
-  // Mirror of answers state kept in a ref so handleSubmit always reads the
-  // latest value even when called from a stale useEffect closure.
-  const answersRef                  = useRef<Record<string, string>>({});
 
   // Load random questions on mount
   useEffect(() => {
@@ -81,21 +78,12 @@ export default function MockTestPage() {
       });
     }, 1000);
     return () => clearInterval(timerRef.current!);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
 
-  function handleSubmit() {
-    clearInterval(timerRef.current!);
-    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
-    if (sessionIdRef.current) {
-      completeSession(sessionIdRef.current, answersRef.current, duration).catch(console.error);
-    }
-    setScreen("results");
-    setConfirm(false);
-  }
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (timeLeft === 0 && screen === "inprogress") handleSubmit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, screen]);
 
   async function startTest() {
@@ -114,13 +102,25 @@ export default function MockTestPage() {
   }
 
   function handleAnswer(questionId: string, optionId: string) {
-    const updated = { ...answersRef.current, [questionId]: optionId };
-    answersRef.current = updated;
-    setAnswers(updated);
+    setAnswers((a) => ({ ...a, [questionId]: optionId }));
+    if (sessionIdRef.current) {
+      // Fire-and-forget real-time save
+      saveAnswer(sessionIdRef.current, questionId, optionId).catch(console.error);
+    }
+  }
+
+  function handleSubmit() {
+    clearInterval(timerRef.current!);
+    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+    if (sessionIdRef.current) {
+      completeSession(sessionIdRef.current, duration).catch(console.error);
+    }
+    setScreen("results");
+    setConfirm(false);
   }
 
   function toggleFlag(id: string) {
-    setFlagged((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setFlagged((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
   const TOTAL_Q    = questions.length;
@@ -373,8 +373,7 @@ export default function MockTestPage() {
           )}
 
           <Button variant="outline" onClick={() => {
-            setScreen("pretest"); setCurrent(0);
-            answersRef.current = {}; setAnswers({});
+            setScreen("pretest"); setCurrent(0); setAnswers({});
             setFlagged(new Set()); setTimeLeft(TIME_LIMIT);
             sessionIdRef.current = null;
           }}>

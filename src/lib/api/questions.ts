@@ -81,19 +81,15 @@ export async function getRandomQuestions(
     .select("*, topic:topics(id, name)")
     .eq("exam_id", examUUID)
     .eq("question_type", "mcq")
-    .limit(count * 3); // fetch 3× to allow shuffling without fetching the entire bank
+    .limit(count * 5); // over-fetch for random sampling
 
   if (topicIds?.length) query = query.in("topic_id", topicIds);
 
   const { data } = await query;
   if (!data) return [];
 
-  // Shuffle and return the requested count
-  for (let i = data.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [data[i], data[j]] = [data[j], data[i]];
-  }
-  return data.slice(0, count);
+  const shuffled = [...data].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }
 
 export async function searchQuestions(examId: string, query: string) {

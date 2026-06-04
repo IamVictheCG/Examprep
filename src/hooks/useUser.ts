@@ -13,20 +13,30 @@ export function useUser(): { user: User | null; profile: Profile | null; loading
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
+    let _client: ReturnType<typeof createClient>;
+    try {
+      _client = createClient();
+    } catch {
+      setLoading(false);
+      return;
+    }
+    const supabase = _client;
 
-    async function getUser() {
+    async function fetchProfile(userId: string) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      setProfile(data);
+    }
+
+    async function init() {
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user ?? null;
         setUser(currentUser);
-        if (currentUser) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, streak_count")
-            .eq("id", currentUser.id)
-            .single();
-          setProfile(data);
-        }
+        if (currentUser) await fetchProfile(currentUser.id);
       } catch {
         // Supabase not configured — silently fail
       } finally {
@@ -34,26 +44,27 @@ export function useUser(): { user: User | null; profile: Profile | null; loading
       }
     }
 
-    getUser();
+    init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, streak_count")
-            .eq("id", session.user.id)
-            .single();
-          setProfile(data);
-        } else {
-          setProfile(null);
+    let unsubscribe: (() => void) | undefined;
+    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          if (currentUser) {
+            await fetchProfile(currentUser.id);
+          } else {
+            setProfile(null);
+          }
         }
-        setLoading(false);
-      }
-    );
+      );
+      unsubscribe = () => subscription.unsubscribe();
+    } catch {
+      // ignore
+    }
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   return { user, profile, loading };
