@@ -11,7 +11,7 @@ const SUPABASE_READY =
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
   process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith("http");
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (!SUPABASE_READY) {
     return NextResponse.next({ request });
   }

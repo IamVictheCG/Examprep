@@ -61,7 +61,8 @@ export default function AnalyticsPage() {
       getReadinessScore(user.id, examId),
       getUserSessions(user.id, examId),
     ])
-      .then(([trend, perf, study, ready, sessions]) => {
+      .then(([trend, perf, study, ready, rawSessions]) => {
+        const sessions = rawSessions as { score: number }[];
         setScoreTrend(trend);
         setTopicPerf(perf);
         setStudyTime(study);

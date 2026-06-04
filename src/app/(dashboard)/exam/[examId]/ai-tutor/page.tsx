@@ -63,36 +63,32 @@ export default function AiTutorPage() {
     if (!user) return;
     const supabase = createClient();
 
-    supabase.from("exams").select("id").eq("slug", examId).single()
-      .then(({ data: examRow }) => {
-        if (!examRow) return;
-        return supabase
-          .from("ai_tutor_sessions")
-          .select("id, messages")
-          .eq("user_id", user.id)
-          .eq("exam_id", examRow.id)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .single();
-      })
-      .then((result) => {
-        const data = result?.data;
-        if (!data) return;
-        setSessionDbId(data.id);
-        if (Array.isArray(data.messages) && data.messages.length > 0) {
-          setMessages([
-            WELCOME,
-            ...data.messages.map(
-              (m: { role: "user" | "assistant"; content: string }, i: number) => ({
-                id:      `loaded-${i}`,
-                role:    m.role,
-                content: m.content,
-              })
-            ),
-          ]);
-        }
-      })
-      .catch(console.error);
+    void (async () => {
+      const { data: examRow } = await supabase.from("exams").select("id").eq("slug", examId).single();
+      if (!examRow) return;
+      const { data } = await supabase
+        .from("ai_tutor_sessions")
+        .select("id, messages")
+        .eq("user_id", user.id)
+        .eq("exam_id", examRow.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (!data) return;
+      setSessionDbId(data.id);
+      if (Array.isArray(data.messages) && data.messages.length > 0) {
+        setMessages([
+          WELCOME,
+          ...data.messages.map(
+            (m: { role: "user" | "assistant"; content: string }, i: number) => ({
+              id:      `loaded-${i}`,
+              role:    m.role,
+              content: m.content,
+            })
+          ),
+        ]);
+      }
+    })().catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, examId]);
 

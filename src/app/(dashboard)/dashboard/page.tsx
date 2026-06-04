@@ -22,6 +22,17 @@ const CYAN   = "#00e5ff";
 const BORDER = "rgba(0,229,255,0.12)";
 
 // ─── Local data shapes ────────────────────────────────────────────────────────
+type SessionWithExam = {
+  id: string
+  user_id: string
+  exam_id: string
+  score: number
+  duration_seconds: number
+  completed: boolean
+  started_at: string
+  completed_at: string | null
+  exam: { slug: string; name: string } | null
+}
 type ExamCard = { id: string; name: string; field: string; icon: string; progress: number; lastActivity: string };
 type FocusItem = { examId: string; exam: string; topic: string; lastScore: number };
 type ActivityItem = { type: string; exam: string; description: string; date: string; score: number | null };
@@ -44,7 +55,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 16 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { duration: 0.42, ease: "easeOut", delay: i * 0.06 },
+    transition: { duration: 0.42, ease: "easeOut" as const, delay: i * 0.06 },
   }),
 };
 
@@ -77,7 +88,8 @@ export default function DashboardHome() {
       getUserSessions(user.id),
       getStudyTime(user.id, 7),
     ])
-      .then(([dbExams, sessions, studyDays]) => {
+      .then(([dbExams, rawSessions, studyDays]) => {
+        const sessions = rawSessions as SessionWithExam[];
         // Subscribed exam IDs (slugs)
         const slugSet = new Set(dbExams.map((e) => e.slug));
         setSubscribedIds(slugSet);
@@ -85,7 +97,7 @@ export default function DashboardHome() {
         // Build exam cards
         const cards: ExamCard[] = dbExams.map((dbExam) => {
           const examSessions = sessions.filter(
-            (s) => (s.exam as { slug: string } | null)?.slug === dbExam.slug
+            (s) => s.exam?.slug === dbExam.slug
           );
           const avgScore =
             examSessions.length > 0

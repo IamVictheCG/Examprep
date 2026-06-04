@@ -14,6 +14,21 @@ npm run lint     # Run ESLint
 
 There is no test suite.
 
+## Environment variables
+
+Required in `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ANTHROPIC_API_KEY=
+PAYSTACK_SECRET_KEY=
+PAYSTACK_WEBHOOK_SECRET=
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
 ## Stack
 
 - **Next.js 16.2.6 / React 19** — see AGENTS.md; APIs differ from prior versions
@@ -48,9 +63,11 @@ src/app/
   auth/callback/         # Supabase OAuth/magic-link callback
 ```
 
+Both `(auth)` and `(dashboard)` route groups require their own `layout.tsx` — these must not be deleted or Next.js will throw a type error at build time.
+
 ### examId convention
 
-`examId` in routes and throughout the frontend is always the **slug** (e.g. `"ican"`, `"bar-finals"`), not a UUID. All `src/lib/api/*` server actions resolve the slug to a UUID via `resolveExamSlug()` before querying Supabase. The authoritative list of slugs/names is `src/lib/constants.ts` (`EXAMS` array).
+`examId` in routes and throughout the frontend is always the **slug** (e.g. `"ican"`, `"bar-finals"`), not a UUID. All `src/lib/api/*` server actions resolve the slug to a UUID via a local `resolveExamSlug()` helper defined at the top of each API module — it is not a shared utility. The authoritative list of slugs/names is `src/lib/constants.ts` (`EXAMS` array).
 
 ### Data access pattern
 
@@ -60,9 +77,30 @@ All database reads/writes go through `"use server"` functions in `src/lib/api/`.
 - **Client context** (browser): `src/lib/supabase/client.ts` → `createClient()`
 - **Middleware**: `src/lib/supabase/middleware.ts` → `updateSession()`
 
+### `src/lib/` module map
+
+| Module | Contents |
+|--------|----------|
+| `api/questions.ts` | `getQuestionsByExam`, `getTopicsByExam`, `getQuestionById`, `getRandomQuestions`, `searchQuestions`, `updateQuestionExplanation` |
+| `api/mock-tests.ts` | `createSession`, `saveAnswer`, `completeSession`, session retrieval |
+| `api/flashcards.ts` | Flashcard session management |
+| `api/bookmarks.ts` | `bookmarked_questions` CRUD |
+| `api/analytics.ts` | `topic_performance` reads |
+| `api/profile.ts` | Profile reads/writes |
+| `auth/actions.ts` | `signUp`, `signIn`, `signOut`, `resetPassword`, `updatePassword` — all Server Actions |
+| `subscriptions/index.ts` | `getUserSubscriptions`, `hasActiveSubscription`, `getSubscribedExams` |
+| `ai/tutor.ts` | SSE streaming to Anthropic, rate limiting, exam-scoped system prompt |
+| `ai/explanations.ts` | Non-streaming wrong-answer explanations (called from `"use server"` context) |
+| `paystack/client.ts` | `initializeTransaction`, `verifyTransaction` |
+| `constants.ts` | `EXAMS` array — authoritative slug/name list |
+
+TypeScript types for the Supabase schema are generated in `src/types/database.types.ts`.
+
 ### Auth & middleware
 
 `src/middleware.ts` enforces route protection. It is a **no-op** when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` are absent (dev without Supabase). Protected prefixes: `/dashboard`, `/exam/`, `/account`. Auth-only prefixes (redirect to dashboard if logged in): `/login`, `/register`.
+
+> **Next.js 16 deprecation**: The `middleware.ts` file convention is deprecated in this version — the build warns to use `proxy` instead. Do not rename it until the project is ready to migrate.
 
 `useUser()` (`src/hooks/useUser.ts`) — the client-side hook for current user + profile. Returns `{ user, profile, loading }`. Silently fails when Supabase is not configured.
 
@@ -100,7 +138,8 @@ Fonts: **Syne** (weights 700/800, class `font-heading`) and **Space Grotesk** (w
 
 ### Pages with mock data
 
-Several dashboard pages still use hardcoded `MOCK_*` constants pending backend integration (labelled "MOCK DATA — replace with API call in Backend Phase 4"):
+Several pages still use hardcoded `MOCK_*` constants pending backend integration (labelled "MOCK DATA — replace with API call in Backend Phase 4"):
+- `dashboard/page.tsx` — stats (study time, tests, avg score), recent activity
 - `exam/[examId]/page.tsx` — performance stats and recent sessions
 - `exam/[examId]/flashcards/page.tsx` — flashcard content
 - `exam/[examId]/mock-test/[sessionId]/review/page.tsx` — review data
