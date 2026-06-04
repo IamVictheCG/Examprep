@@ -163,7 +163,18 @@ export async function getSession(sessionId: string) {
   return { session, questions: questions ?? [] };
 }
 
-export async function getUserSessions(userId: string, examId?: string) {
+export type SessionWithExam = {
+  id: string;
+  exam_id: string;
+  user_id: string;
+  score: number;
+  completed: boolean;
+  completed_at: string | null;
+  started_at: string | null;
+  exam: { slug: string; name: string; icon: string } | null;
+};
+
+export async function getUserSessions(userId: string, examId?: string): Promise<SessionWithExam[]> {
   const supabase = await createClient();
 
   let query = supabase
@@ -180,5 +191,5 @@ export async function getUserSessions(userId: string, examId?: string) {
   }
 
   const { data } = await query;
-  return data ?? [];
+  return (data ?? []) as SessionWithExam[];
 }
